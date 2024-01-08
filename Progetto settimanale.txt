@@ -1,0 +1,296 @@
+-- Creazione Tabella delle vendite
+CREATE TABLE vendite (
+    id_transazione INT PRIMARY KEY,
+    categoria_prodotto VARCHAR(255),
+    costo_vendita DECIMAL(10, 2),
+    sconto_applicato INT
+);
+
+-- Creazione Tabella dei dettagli delle vendite
+CREATE TABLE dettagli_vendite (
+    id_cliente INT,
+    data_transazione DATE,
+    quantita INT,
+    id_transazione INT,
+    FOREIGN KEY (id_transazione) REFERENCES vendite(id_transazione)
+);
+-- Inserimento dati nella tabella "vendite"
+INSERT INTO vendite (id_transazione, categoria_prodotto, costo_vendita, sconto_applicato)
+VALUES
+    (1, 'Elettronica', 500.00, 10),
+    (2, 'Abbigliamento', 100.00, 55),
+    (3, 'Casa', 300.00, 15),
+    (4, 'Elettronica', 700.00, 20),
+    (5, 'Abbigliamento', 120.00, 60),
+    (6, 'Casa', 250.00, 12),
+    (7, 'Elettronica', 600.00, 15),
+    (8, 'Casa', 350.00, 10),
+    (9, 'Abbigliamento', 80.00, 60),
+    (10, 'Elettronica', 550.00, 30),
+    (11, 'Elettronica', 600.00, 10),
+    (12, 'Abbigliamento', 150.00, 5),
+    (13, 'Casa', 400.00, 15),
+    (14, 'Elettronica', 750.00, 20),
+    (15, 'Abbigliamento', 180.00, 8),
+    (16, 'Casa', 300.00, 12),
+    (17, 'Elettronica', 650.00, 15),
+    (18, 'Casa', 450.00, 10),
+    (19, 'Abbigliamento', 120.00, 7),
+    (20, 'Elettronica', 500.00, 18);
+
+-- Inserimento dati nella tabella "dettagli_vendite"
+INSERT INTO dettagli_vendite (id_cliente, data_transazione, quantita, id_transazione)
+VALUES
+    (101, '2023-12-24', 2, 1),
+    (102, '2023-12-20', 1, 2),
+    (103, '2024-01-10', 3, 3),
+    (104, '2024-01-11', 2, 4),
+    (101, '2024-01-11', 2, 7),
+    (105, '2024-01-12', 1, 5),
+    (106, '2024-01-13', 4, 6),
+    (107, '2023-12-24', 2, 7),
+    (108, '2023-12-24', 3, 8),
+    (109, '2023-10-16', 1, 9),
+    (101, '2023-09-17', 2, 10),
+    (102, '2023-01-01', 2, 11),
+    (103, '2023-02-15', 1, 12),
+    (104, '2023-03-10', 3, 13),
+    (105, '2023-04-05', 2, 14),
+    (105, '2023-05-20', 1, 15),
+    (105, '2023-06-15', 4, 16),
+    (101, '2023-07-10', 2, 17),
+    (101, '2023-08-25', 3, 18),
+    (101, '2023-09-12', 1, 19),
+    (101, '2023-10-05', 2, 20),
+    (101, '2023-01-15', 2, 20),
+    (105, '2023-02-20', 1, 20),
+    (104, '2023-03-10', 3, 20),
+    (102, '2023-04-05', 2, 10),
+    (103, '2023-05-20', 1, 10),
+    (101, '2023-06-15', 4, 11),
+    (105, '2023-07-10', 2, 12),
+    (104, '2023-08-25', 3, 13),
+    (102, '2023-09-12', 1, 14),
+    (103, '2023-10-05', 2, 15);
+    
+
+-- 1. Selezionare tutte le vendite avvenutte in una pecifica data (24 dicembre 2023)
+SELECT *
+FROM vendite v
+JOIN dettagli_vendite dv ON v.id_transazione = dv.id_transazione
+WHERE dv.data_transazione = '2023-12-24';
+-- 2. Vendite con lo sconto maggiore di 50%
+SELECT *
+FROM vendite
+WHERE sconto_applicato > 50;
+-- 3. Calcola il totale delle vendite per categoria. 
+SELECT categoria_prodotto, SUM(costo_vendita) AS totale_vendite
+FROM vendite
+GROUP BY categoria_prodotto;
+-- 4. Trova il numero totale di prodotti venduti per ogni categoria.
+SELECT categoria_prodotto, SUM(quantita) AS totale_prodotti_venduti
+FROM dettagli_vendite
+JOIN vendite ON dettagli_vendite.id_transazione = vendite.id_transazione
+GROUP BY categoria_prodotto;
+
+-- 5. Vendite avvenute nell'ultimo trimestre, ho calcolato 90 giorni
+SELECT *
+FROM vendite v
+JOIN dettagli_vendite dv ON v.id_transazione = dv.id_transazione
+WHERE DATEDIFF(NOW(), dv.data_transazione) <= 90;
+
+-- 6. Raggruppa le vendite per mese e calcola il totale delle vendite per ogni mese
+SELECT 
+    YEAR(dv.data_transazione) AS anno,
+    MONTH(dv.data_transazione) AS mese,
+    COUNT(*) AS numero_vendite,
+    SUM(v.costo_vendita) AS totale_vendite
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+GROUP BY anno, mese
+ORDER BY anno, mese;
+
+-- 7. Trova la categoria con lo sconto medio più alto.
+SELECT categoria_prodotto, sconto_medio
+FROM (
+    SELECT categoria_prodotto, AVG(sconto_applicato) AS sconto_medio
+    FROM vendite
+    GROUP BY categoria_prodotto
+    ORDER BY sconto_medio DESC
+) AS sconti_per_categoria
+LIMIT 1;
+
+-- 8.Confronta le vendite mese per mese per vedere l'incremento o il decremento delle vendite, 
+-- calcola l’incremento o decremento mese per mese
+SELECT 
+    anno,
+    mese,
+    totale_vendite,
+    LAG(totale_vendite) OVER (ORDER BY anno, mese) AS vendite_mese_precedente,
+    CASE 
+        WHEN totale_vendite > LAG(totale_vendite) OVER (ORDER BY anno, mese) THEN 'Incremento'
+        WHEN totale_vendite < LAG(totale_vendite) OVER (ORDER BY anno, mese) THEN 'Decremento'
+        ELSE 'Stesso'
+    END AS variazione
+FROM (
+    SELECT 
+        YEAR(dv.data_transazione) AS anno,
+        MONTH(dv.data_transazione) AS mese,
+        SUM(v.costo_vendita) AS totale_vendite
+    FROM dettagli_vendite dv
+    JOIN vendite v ON dv.id_transazione = v.id_transazione
+    GROUP BY anno, mese
+) AS t1
+ORDER BY anno, mese;
+-- 9.Confronta le vendite totali in diverse stagioni.
+SELECT 
+    YEAR(dv.data_transazione) AS anno,
+    CASE 
+        WHEN MONTH(dv.data_transazione) IN (12, 1, 2) THEN 'Inverno'
+        WHEN MONTH(dv.data_transazione) IN (3, 4, 5) THEN 'Primavera'
+        WHEN MONTH(dv.data_transazione) IN (6, 7, 8) THEN 'Estate'
+        WHEN MONTH(dv.data_transazione) IN (9, 10, 11) THEN 'Autunno'
+    END AS stagione,
+    SUM(v.costo_vendita) AS totale_vendite
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+GROUP BY anno, stagione
+ORDER BY anno, stagione;
+-- 10. Supponendo di avere una tabella clienti con i campi IDCliente e IDVendita, scrivi una query per trovare i top 5 clienti con il maggior numero di acquisti.
+SELECT 
+    dv.id_cliente,
+    SUM(dv.quantita) AS quantita_totale_acquistata,
+    SUM(v.costo_vendita) AS importo_totale_acquisti
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+GROUP BY dv.id_cliente
+ORDER BY importo_totale_acquisti DESC, quantita_totale_acquistata DESC
+LIMIT 5;
+
+-- ALTRE DOMANDE
+-- Calcolo il costo senza sconto applicato per ciascuna transazione
+SELECT
+    id_transazione,
+    categoria_prodotto,
+    costo_vendita,
+    sconto_applicato,
+    ROUND(costo_vendita / (1 - sconto_applicato / 100), 2) AS costo_senza_sconto
+FROM vendite;
+
+
+-- Calcolo dei punti fedeltà per il 2023 per tutte le categorie
+SELECT 
+    dv.id_cliente,
+    v.categoria_prodotto,
+    SUM(v.costo_vendita) AS importo_totale_acquisti,
+    ROUND(SUM(v.costo_vendita)) AS punti_fedelta
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+WHERE YEAR(dv.data_transazione) = 2023
+GROUP BY dv.id_cliente, v.categoria_prodotto
+ORDER BY dv.id_cliente, importo_totale_acquisti DESC;
+
+
+
+/*
+-- Aggiungo un bonus da spendere nel 2024 per i clienti che hanno speso di più nel 2023 nella categoria Elettronica
+SELECT 
+    dv.id_cliente,
+    ROUND(SUM(v.costo_vendita)) AS punti_fedelta,
+    CASE 
+        WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 1000 AND 1999 THEN 'BONUS SCONTO 10'
+        WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 2000 AND 2999 THEN 'BONUS SCONTO 20'
+        WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 3000 AND 3999 THEN 'BONUS SCONTO 30'
+        ELSE 'non ha diritto'
+    END AS bonus_sconto
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+WHERE YEAR(dv.data_transazione) = 2023 AND v.categoria_prodotto = 'Elettronica'
+GROUP BY dv.id_cliente
+ORDER BY dv.id_cliente;
+
+-- seleziona i clienti che hanno effettuato acquisti per la categoria elettronica nel 2024
+SELECT DISTINCT 
+    dv.id_cliente,
+    v.categoria_prodotto,
+    v.costo_vendita
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+WHERE YEAR(dv.data_transazione) = 2024 AND v.categoria_prodotto = 'Elettronica';
+*/
+
+-- Verifico il tipo di bonus ottenuto nel 2023 per tutti i clienti
+SELECT 
+    dv.id_cliente,
+    ROUND(SUM(v.costo_vendita)) AS punti_fedelta,
+    CASE 
+        WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 1000 AND 1999 THEN 'BONUS 10'
+        WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 2000 AND 2999 THEN 'BONUS 20'
+        WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 3000 AND 3999 THEN 'BONUS 30'
+        ELSE 'NESSUN BONUS'
+    END AS tipo_bonus
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+WHERE YEAR(dv.data_transazione) = 2023 AND v.categoria_prodotto = 'Elettronica'
+GROUP BY dv.id_cliente;
+
+-- Calcolo lo sconto in base al tipo di bonus per le spese del 2024
+SELECT 
+    dv.id_cliente,
+    v.categoria_prodotto,
+    SUM(v.costo_vendita) AS spesa_totale,
+    CASE 
+        WHEN tipo_bonus = 'BONUS 10' THEN SUM(v.costo_vendita) * 0.9
+        WHEN tipo_bonus = 'BONUS 20' THEN SUM(v.costo_vendita) * 0.8
+        WHEN tipo_bonus = 'BONUS 30' THEN SUM(v.costo_vendita) * 0.7
+        ELSE SUM(v.costo_vendita)
+    END AS spesa_con_sconto
+FROM dettagli_vendite dv
+JOIN vendite v ON dv.id_transazione = v.id_transazione
+JOIN (
+    SELECT 
+        dv.id_cliente,
+        CASE 
+            WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 1000 AND 1999 THEN 'BONUS 10'
+            WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 2000 AND 2999 THEN 'BONUS 20'
+            WHEN ROUND(SUM(v.costo_vendita)) BETWEEN 3000 AND 3999 THEN 'BONUS 30'
+            ELSE 'NESSUN BONUS'
+        END AS tipo_bonus
+    FROM dettagli_vendite dv
+    JOIN vendite v ON dv.id_transazione = v.id_transazione
+    WHERE YEAR(dv.data_transazione) = 2023 AND v.categoria_prodotto = 'Elettronica'
+    GROUP BY dv.id_cliente
+) AS bonus_per_cliente ON dv.id_cliente = bonus_per_cliente.id_cliente
+WHERE YEAR(dv.data_transazione) = 2024 AND v.categoria_prodotto = 'Elettronica'
+GROUP BY dv.id_cliente, v.categoria_prodotto, tipo_bonus;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
